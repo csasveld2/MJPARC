@@ -37,6 +37,7 @@ dependencies = [
     "py-cpuinfo",
     "imageio[ffmpeg]",
     "scipy",
+    "mjlab>=1.0.0",
 ]
 
 [project.optional-dependencies]
