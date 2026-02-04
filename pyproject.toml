@@ -85,6 +85,7 @@ Repository = "https://github.com/mshoe/PARC"
 Documentation = "https://github.com/mshoe/PARC#readme"
 
 [tool.hatch.build.targets.wheel]
+# Include PARC as the parc package
 packages = ["PARC"]
 
 [tool.hatch.build.targets.sdist]
@@ -97,19 +98,6 @@ include = [
 # ============================================================================
 # uv configuration
 # ============================================================================
-
-[tool.uv]
-# Default Python version
-python = "3.11"
-
-# Development dependencies (installed with `uv sync --dev`)
-dev-dependencies = [
-    "pytest>=7.0",
-    "pytest-cov",
-    "ruff>=0.1.0",
-    "mypy>=1.0",
-    "pre-commit",
-]
 
 [tool.uv.sources]
 # mjlab from GitHub (uncomment when using mjlab backend)
