@@ -3,23 +3,103 @@
 Project page: https://michaelx.io/parc
 
 # Installation
-Tested with Ubuntu 22.04
 
-**Optional**: Install Isaac Gym (https://developer.nvidia.com/isaac-gym) for motion tracking
+## Quick Start with uv (Recommended)
 
-Install requirements:
+[uv](https://docs.astral.sh/uv/) is a fast Python package manager. Install it first:
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
+
+Then install PARC:
+
+```bash
+# Clone the repository
+git clone https://github.com/mshoe/PARC.git
+cd PARC
+
+# Create virtual environment and install dependencies
+uv sync
+
+# Activate the environment
+source .venv/bin/activate  # Linux/macOS
+# or: .venv\Scripts\activate  # Windows
+```
+
+### With mjlab Backend (MuJoCo Warp - GPU Required)
+
+For GPU-accelerated motion tracking using mjlab:
+
+```bash
+# Install with mjlab support
+uv sync --extra mjlab
+
+# Or add mjlab to existing installation
+uv add mjlab
+```
+
+### Platform-Specific Dependencies
+
+```bash
+# Linux (with CUDA)
+uv sync --extra linux
+
+# macOS (evaluation only, no GPU training)
+uv sync --extra macos
+```
+
+### Development Setup
+
+```bash
+# Install with dev dependencies
+uv sync --extra dev
+
+# Or install everything
+uv sync --extra all
+```
+
+## Alternative: pip Installation
+
+```bash
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install package
+pip install -e .
+
+# With mjlab backend
+pip install -e ".[mjlab]"
+```
+
+## Legacy: Conda Installation
+
+For Isaac Gym compatibility (deprecated):
+
+```bash
 conda create -n parc python=3.8.20
 conda activate parc
 pip install -r requirements.txt
 ```
-and it should be good to go. If pytorch is not being able to detect CUDA, try reinstalling:
-```
+
+If PyTorch doesn't detect CUDA:
+```bash
 pip install torch==2.2.0+cu118 -f https://download.pytorch.org/whl/torch_stable.html
 ```
-You can then run scripts such as:
-```
+
+## Running PARC
+
+```bash
+# Run motionscope
 python scripts/run_motionscope.py
+
+# Or using the installed command
+run-motionscope
 ```
 
 ## Motionscope
@@ -63,16 +143,58 @@ configs with the configured value when they load them.
 
 
 ## Motion Tracking
-PARC's motion tracking module was written using Isaac Gym, based on an early version of MimicKit. Isaac Gym is deprecated and there are now many great open-source motion tracking repositories. I personally recommend using https://github.com/xbpeng/MimicKit
 
-The recipe for building a blocky terrain style motion tracking environment as shown in PARC is to start from a DeepMimic environment, but to load in a terrain that is composed of all the terrain-motion pairs in your dataset laid out as a grid. The environment should keep track of which motion-terrain each agent is currently learning, book-keeping the position offset for the agent and reference motions.
+PARC supports two physics backends for motion tracking:
 
-If you still wish to use Isaac Gym, then install it here: https://developer.nvidia.com/isaac-gym
+### mjlab Backend (Recommended)
 
-I recommend using their installation scrip to install it within a **conda** environment with python 3.8.20 (Other versions may also work, but not tested).
+[mjlab](https://github.com/mujocolab/mjlab) combines Isaac Lab's manager-based API with MuJoCo Warp for GPU-accelerated simulation. This is the recommended backend for new projects.
+
+```bash
+# Install with mjlab support
+uv sync --extra mjlab
+
+# Run the example
+python PARC/motion_tracker/envs/mj_launch_example.py \
+    --char-file data/characters/humanoid.xml \
+    --motion-file data/motions/walk.yaml \
+    --num-envs 4096
+```
+
+Key features:
+- Manager-based RL API (modular observations, rewards, events)
+- Direct PyTorch tensor access via `env.scene.data`
+- MuJoCo Warp GPU backend for fast parallel simulation
+- Custom PD actuators for exponential map control
+
+Example usage:
+```python
+from parc.motion_tracker.envs import MJCharEnv, MJCharEnvCfg
+
+cfg = MJCharEnvCfg(
+    char_file="path/to/humanoid.xml",
+    motion_file="path/to/motions.yaml",
+    scene=MJCharSceneCfg(num_envs=4096),
+)
+env = MJCharEnv(cfg=cfg)
+obs, info = env.reset()
+```
+
+### Isaac Gym Backend (Legacy)
+
+The original implementation using Isaac Gym (deprecated by NVIDIA). Use this for compatibility with existing checkpoints.
+
+If you still wish to use Isaac Gym, install it from: https://developer.nvidia.com/isaac-gym
+
+```bash
+# Create conda environment for Isaac Gym
+conda create -n parc python=3.8.20
+conda activate parc
+pip install -r requirements.txt
+```
 
 The isaac gym helper yaml should look like this:
-```
+```yaml
 name: parc
 channels:
   - pytorch
@@ -87,6 +209,16 @@ dependencies:
   - scipy>=1.5.0
   - tensorboard>=2.2.1
 ```
+
+### Environment Architecture
+
+The blocky terrain style motion tracking environment works by:
+1. Loading terrain-motion pairs from your dataset
+2. Laying them out as a grid in the simulation
+3. Each agent tracks a specific motion-terrain pair
+4. Position offsets are managed per agent for reward/observation computation
+
+For more details, see [MimicKit](https://github.com/xbpeng/MimicKit)
 
 ## Codebase Guide
 * [PARC Guide](doc/parc_guide.md)
