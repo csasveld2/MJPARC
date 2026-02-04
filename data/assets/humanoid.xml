@@ -11,8 +11,7 @@
   </default>
 
   <worldbody>
-    <geom name="floor" type="plane" conaffinity="1" size="100 100 .2" material="grid"/>
-    
+    <!-- Floor removed - terrain provided by mjlab -->
 	  <body name="pelvis" pos="0 0 0" childclass="body">
       <freejoint name="root"/>
       <geom name="pelvis" type="sphere" pos="0 0 0.07" size=".09" density="2226"/>
@@ -107,34 +106,5 @@
     </body>
   </worldbody>
 
-  <actuator>
-    <motor name='abdomen_x'       	gear='200' 	joint='abdomen_x'/>
-    <motor name='abdomen_y'       	gear='200' 	joint='abdomen_y'/>
-    <motor name='abdomen_z'       	gear='200' 	joint='abdomen_z'/>
-    <motor name='neck_x'          	gear='50' 	joint='neck_x'/>
-    <motor name='neck_y'            gear='50' 	joint='neck_y'/>
-    <motor name='neck_z'           	gear='50' 	joint='neck_z'/>
-    <motor name='right_shoulder_x' 	gear='100' 	joint='right_shoulder_x'/>
-    <motor name='right_shoulder_y' 	gear='100' 	joint='right_shoulder_y'/>
-    <motor name='right_shoulder_z' 	gear='100' 	joint='right_shoulder_z'/>
-    <motor name='right_elbow'     	gear='70' 	joint='right_elbow'/>
-    <motor name='left_shoulder_x' 	gear='100' 	joint='left_shoulder_x'/>
-    <motor name='left_shoulder_y' 	gear='100' 	joint='left_shoulder_y'/>
-    <motor name='left_shoulder_z' 	gear='100' 	joint='left_shoulder_z'/>
-    <motor name='left_elbow'      	gear='70' 	joint='left_elbow'/>
-    <motor name='right_hip_x'     	gear='200' 	joint='right_hip_x'/>
-    <motor name='right_hip_z'     	gear='200' 	joint='right_hip_z'/>
-    <motor name='right_hip_y'     	gear='200' 	joint='right_hip_y'/>
-    <motor name='right_knee'      	gear='150' 	joint='right_knee'/>
-    <motor name='right_ankle_x'   	gear='90' 	joint='right_ankle_x'/>
-    <motor name='right_ankle_y'   	gear='90' 	joint='right_ankle_y'/>
-    <motor name='right_ankle_z'   	gear='90' 	joint='right_ankle_z'/>
-    <motor name='left_hip_x'      	gear='200' 	joint='left_hip_x'/>
-    <motor name='left_hip_z'      	gear='200' 	joint='left_hip_z'/>
-    <motor name='left_hip_y'      	gear='200' 	joint='left_hip_y'/>
-    <motor name='left_knee'       	gear='150' 	joint='left_knee'/>
-    <motor name='left_ankle_x'    	gear='90' 	joint='left_ankle_x'/>
-    <motor name='left_ankle_y'    	gear='90' 	joint='left_ankle_y'/>
-    <motor name='left_ankle_z'    	gear='90' 	joint='left_ankle_z'/>
-  </actuator>
+  <!-- Actuators removed - mjlab provides its own via articulation config -->
 </mujoco>
