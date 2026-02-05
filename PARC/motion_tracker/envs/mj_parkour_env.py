@@ -56,10 +56,14 @@ class MjParkourEnv(base_env.BaseEnv):
 
     NAME = "mj_parkour"
 
+    def get_reward_bounds(self):
+        return (0.0, 1.0)
+
     def __init__(self, config, num_envs, device, visualize):
         super().__init__(visualize)
 
         self._start_compute_time = time.time()
+        self._config = config
         env_config = config["env"]
 
         self._num_envs = num_envs
@@ -558,6 +562,34 @@ class MjParkourEnv(base_env.BaseEnv):
         self._char_contact_forces[:, :num_robot_bodies, :] = \
             cfrc_ext[:, body_offset:body_offset + num_robot_bodies, 3:6]
 
+    def _detect_nan_envs(self):
+        """Detect environments with NaN in physics state and sanitize them.
+
+        Returns tensor of env indices that had NaN. Zeros out their state buffers
+        so downstream obs/reward computations don't propagate NaN.
+        """
+        nan_mask = (
+            torch.isnan(self._char_root_pos).any(dim=-1) |
+            torch.isnan(self._char_root_rot).any(dim=-1) |
+            torch.isnan(self._char_dof_pos).any(dim=-1)
+        )
+        nan_envs = nan_mask.nonzero(as_tuple=False).flatten()
+        if len(nan_envs) > 0:
+            # Zero out NaN state so obs/reward don't produce NaN
+            self._char_root_pos[nan_envs] = 0.0
+            self._char_root_pos[nan_envs, 2] = 0.5  # above ground
+            self._char_root_rot[nan_envs] = torch.tensor([0, 0, 0, 1], dtype=torch.float32, device=self._device)
+            self._char_root_vel[nan_envs] = 0.0
+            self._char_root_ang_vel[nan_envs] = 0.0
+            self._char_dof_pos[nan_envs] = 0.0
+            self._char_dof_vel[nan_envs] = 0.0
+            self._char_rigid_body_pos[nan_envs] = 0.0
+            self._char_rigid_body_rot[nan_envs] = torch.tensor([0, 0, 0, 1], dtype=torch.float32, device=self._device)
+            self._char_rigid_body_vel[nan_envs] = 0.0
+            self._char_rigid_body_ang_vel[nan_envs] = 0.0
+            self._char_contact_forces[nan_envs] = 0.0
+        return nan_envs
+
     def _write_reset_state(self, env_ids):
         """Write character state from our buffers into the mjlab simulation.
 
@@ -605,25 +637,30 @@ class MjParkourEnv(base_env.BaseEnv):
         if env_ids is None:
             env_ids = torch.arange(self._num_envs, device=self._device, dtype=torch.long)
 
-        if len(env_ids) > 0:
-            # dm_env.reset() writes reference state + char state into our buffers
-            if self.has_dm_envs():
-                dm_env_ids = self._extract_dm_env_ids(env_ids)
-                self._dm_env.reset(dm_env_ids)
+        if len(env_ids) == 0:
+            return self._obs_buf, self._info
 
-            # Push the char state from our buffers into the mjlab simulation
-            self._write_reset_state(env_ids)
+        # dm_env.reset() writes reference state + char state into our buffers
+        if self.has_dm_envs():
+            dm_env_ids = self._extract_dm_env_ids(env_ids)
+            self._dm_env.reset(dm_env_ids)
 
-            # Step sim once to settle, then sync back
-            self._mjlab_env.sim.step()
-            self._mjlab_env.scene.update(self._mjlab_env.sim)
-            self._sync_from_sim()
+        # Push the char state from our buffers into the mjlab simulation
+        self._write_reset_state(env_ids)
 
-            # Reset time/done
-            self._timestep_buf[env_ids] = 0
-            self._time_buf[env_ids] = 0.0
-            self._done_buf[env_ids] = base_env.DoneFlags.NULL.value
-            self._ep_num_buf[env_ids] += 1
+        # Step sim once to settle, then sync back
+        self._mjlab_env.sim.step()
+        self._mjlab_env.scene.update(self._mjlab_env.sim)
+        self._sync_from_sim()
+
+        # Detect and sanitize NaN from physics
+        self._detect_nan_envs()
+
+        # Reset time/done
+        self._timestep_buf[env_ids] = 0
+        self._time_buf[env_ids] = 0.0
+        self._done_buf[env_ids] = base_env.DoneFlags.NULL.value
+        self._ep_num_buf[env_ids] += 1
 
         # Refresh heightmap observations
         self._refresh_obs_hfs()
@@ -631,6 +668,11 @@ class MjParkourEnv(base_env.BaseEnv):
         # Compute observations
         self._update_observations(env_ids)
         self._update_info(env_ids)
+
+        # Sanitize any remaining NaN in obs
+        obs_nan_mask = torch.isnan(self._obs_buf).any(dim=-1)
+        if obs_nan_mask.any():
+            self._obs_buf[obs_nan_mask] = 0.0
 
         return self._obs_buf, self._info
 
@@ -647,6 +689,9 @@ class MjParkourEnv(base_env.BaseEnv):
 
         # Sync state from simulation into our buffers
         self._sync_from_sim()
+
+        # Detect NaN from physics divergence and mark those envs as failed
+        nan_envs = self._detect_nan_envs()
 
         # Update time
         self._time_buf += self._timestep
@@ -665,6 +710,11 @@ class MjParkourEnv(base_env.BaseEnv):
         # Compute done
         self._update_done()
 
+        # Force NaN envs to fail (after _update_done so they get reset)
+        if len(nan_envs) > 0:
+            self._done_buf[nan_envs] = base_env.DoneFlags.FAIL.value
+            self._reward_buf[nan_envs] = 0.0
+
         if self._never_done:
             self._done_buf[:] = base_env.DoneFlags.NULL.value
 
@@ -674,6 +724,14 @@ class MjParkourEnv(base_env.BaseEnv):
         # Compute observations for ALL envs (matching original IGParkourEnv)
         self._update_observations()
         self._update_info()
+
+        # Final NaN sanitization: zero out any remaining NaN in obs/reward
+        obs_nan_mask = torch.isnan(self._obs_buf).any(dim=-1)
+        if obs_nan_mask.any():
+            self._obs_buf[obs_nan_mask] = 0.0
+        reward_nan_mask = torch.isnan(self._reward_buf)
+        if reward_nan_mask.any():
+            self._reward_buf[reward_nan_mask] = 0.0
 
         return self._obs_buf, self._reward_buf, self._done_buf, self._info
 
