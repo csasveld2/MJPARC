@@ -6,7 +6,7 @@ import torch
 import parc.anim.kin_char_model as kin_char_model
 import parc.anim.motion_lib as motion_lib
 import parc.motion_tracker.envs.base_env as base_env
-import parc.motion_tracker.envs.ig_char_env as ig_char_env
+import parc.motion_tracker.envs.char_obs_util as char_obs_util
 import parc.util.terrain_util as terrain_util
 import parc.util.torch_util as torch_util
 
@@ -466,7 +466,7 @@ def compute_deepmimic_obs(root_pos, root_rot, root_vel, root_ang_vel,
                           enable_tar_obs, tar_root_pos, tar_root_rot,
                           tar_joint_rot, tar_key_pos):
     ## type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool, bool, bool, Tensor, Tensor, Tensor, Tensor) -> Tensor
-    char_obs = ig_char_env.compute_char_obs(root_pos=root_pos,
+    char_obs = char_obs_util.compute_char_obs(root_pos=root_pos,
                                             root_rot=root_rot,
                                             root_vel=root_vel,
                                             root_ang_vel=root_ang_vel,
