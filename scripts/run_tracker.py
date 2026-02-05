@@ -81,13 +81,13 @@ def set_rand_seed(args):
     rand_seed_key = "rand_seed"
 
     if (args.has_key(rand_seed_key)):
-        rand_seed = args.parse_int(rand_seed_key)
+        rand_seed = int(args.parse_int(rand_seed_key))
     else:
-        rand_seed = np.uint64(time.time() * 256)
-        
+        rand_seed = int(time.time() * 256) % (2**63)
+
     print("Setting seed: {}".format(rand_seed))
     random.seed(rand_seed)
-    np.random.seed(np.uint64(rand_seed % (2**32)))
+    np.random.seed(rand_seed % (2**32))
     torch.manual_seed(rand_seed)
     torch.cuda.manual_seed(rand_seed)
     torch.cuda.manual_seed_all(rand_seed)
