@@ -344,7 +344,10 @@ class MjParkourEnv(base_env.BaseEnv):
             decimation=self._sim_steps_per_control,
         )
 
-        self._mjlab_env = ManagerBasedRlEnv(cfg=cfg, device=self._device)
+        self._mjlab_env = ManagerBasedRlEnv(
+            cfg=cfg, device=self._device,
+            render_mode="rgb_array" if self._visualize else None,
+        )
         self._robot = self._mjlab_env.scene.entities["robot"]
 
         # Build env offsets for grid layout

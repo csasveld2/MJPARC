@@ -100,9 +100,16 @@ include = [
 # uv configuration
 # ============================================================================
 
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
 [tool.uv.sources]
 # mjlab from GitHub (uncomment when using mjlab backend)
 # mjlab = { git = "https://github.com/mujocolab/mjlab" }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
 
 # ============================================================================
 # Tool configurations
